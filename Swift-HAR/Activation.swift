@@ -11,7 +11,7 @@ import Foundation
 
 public extension NeuralNet {
     
-    public enum ActivationFunction {
+    enum ActivationFunction {
         /// Identity activation function.
         /// `f(x) = x`
         /// `f'(x) = 1`

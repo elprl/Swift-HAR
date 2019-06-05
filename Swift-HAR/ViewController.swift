@@ -31,6 +31,7 @@ class ViewController: UIViewController {
         actionType = actionText.text!
         delay(2){
             AudioServicesPlaySystemSound(self.systemSoundID)
+            self.startLiveUpdates()
             self.startLoggingData()
         }
         
@@ -38,7 +39,7 @@ class ViewController: UIViewController {
             AudioServicesPlaySystemSound(self.systemSoundID)
             self.exportToText(currMatrix: self.dataMatrix, action: self.actionType)
             self.actionsLog = self.checkOutput(currentActions: self.actionsLog, newAction: self.actionType)
-            let ind = self.actionsLog.index(of: self.actionType)
+            let ind = self.actionsLog.firstIndex(of: self.actionType)
             print(ind!)
             if ind! == 0 || ind! == (self.actionsLog.count - 1) {
                 //This is the first misc action
@@ -137,7 +138,7 @@ class ViewController: UIViewController {
                 // Walk = [0, 1]
                 var action = ""
                 let maxInference = inference.max()!
-                let predictedAction = self.actionsLog[inference.index(of: maxInference)!]
+                let predictedAction = self.actionsLog[inference.firstIndex(of: maxInference)!]
                 action = "NeuralNet predicts: \(predictedAction)\n\(roundedInfer)"
                 
                 /*
@@ -285,12 +286,12 @@ class ViewController: UIViewController {
     }
     
     func startLiveUpdates(){
-        manager.startAccelerometerUpdates(to: .main) {
-            [weak self] (data: CMAccelerometerData?, error: Error?) in
-            if (data?.acceleration) != nil {
-                self?.outputAccData(acceleration: (data?.acceleration)!)
-            }
-        }
+//        manager.startAccelerometerUpdates(to: .main) {
+//            [weak self] (data: CMAccelerometerData?, error: Error?) in
+//            if (data?.acceleration) != nil {
+//                self?.outputAccData(acceleration: (data?.acceleration)!)
+//            }
+//        }
         manager.startGyroUpdates(to: .main) {
             [weak self] (data: CMGyroData?, error: Error?) in
             if (data?.rotationRate) != nil {
@@ -310,6 +311,7 @@ class ViewController: UIViewController {
                 self?.ax = Float((data?.acceleration.x)!)
                 self?.ay = Float((data?.acceleration.y)!)
                 self?.az = Float((data?.acceleration.z)!)
+                self?.outputAccData(acceleration: (data?.acceleration)!)
             }
         }
         delay(0.5){
@@ -317,7 +319,7 @@ class ViewController: UIViewController {
         }
     }
 
-    func recordToDataMatrix(){
+    @objc func recordToDataMatrix(){
         if i == rowNum{
             self.timer.invalidate()
             print("Finished logging data")
@@ -336,6 +338,7 @@ class ViewController: UIViewController {
             dataInd += Float(self.updateInterval)
         }
     }
+    
     func stopUpdates(){
         manager.stopAccelerometerUpdates()
         manager.stopGyroUpdates()
@@ -500,7 +503,7 @@ class ViewController: UIViewController {
         let actNum = actLog.count
         var tmpAns: [Float] = Array(repeating: 0.0, count: actNum)
         for action in actLog {
-            let ind = actLog.index(of: action)!
+            let ind = actLog.firstIndex(of: action)!
             tmpAns = Array(repeating: 0.0, count: actNum)
             tmpAns[ind] = 1.0
             for _ in 0..<bootTrainDataNum {
@@ -516,7 +519,7 @@ class ViewController: UIViewController {
         var mTrain = [[Float]]()
         var mTest = [[Float]]()
         for action in actLog {
-            let ind = actLog.index(of: action)!
+            let ind = actLog.firstIndex(of: action)!
             mTrain += (self.triAxisBootWrapper(arr2D: dataSet[ind], setsNum: bootTrainDataNum, startPt: 0, stride: bootStepSize, windowSize: ptsPerData, rowNums: rowNum))
             mTest += (self.triAxisBootWrapper(arr2D: dataSet[ind], setsNum: bootTestDataNum, startPt: testStartPt, stride: bootStepSize, windowSize: ptsPerData, rowNums: rowNum))
         }
@@ -581,7 +584,7 @@ class ViewController: UIViewController {
     func flattenDataMatrix(_ arr2D: [[Float]]) -> String {
         var returnString = "time,accelx,accely,accelz"
         for row in arr2D {
-            let stringArray = row.flatMap{String($0)}
+            let stringArray: [String] = row.compactMap{String($0)}
             let string = stringArray.joined(separator: ",")
             returnString.append("\n"+string)
         }

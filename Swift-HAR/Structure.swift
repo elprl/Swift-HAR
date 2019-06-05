@@ -10,7 +10,7 @@
 public extension NeuralNet {
     
     /// A container for the basic structure of a 3-layer neural network.
-    public struct Structure {
+    struct Structure {
         
         /// Possible `Structure` errors.
         public enum Error: Swift.Error {

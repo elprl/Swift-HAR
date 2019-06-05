@@ -12,7 +12,7 @@ import Foundation
 public extension NeuralNet {
     
     /// The cost function for calculating error on a single set of validation data.
-    public enum CostFunction {
+    enum CostFunction {
         /// Mean squared error function.
         /// 1/2 * ∑[i]( (a[i] - t[i])^2 )
         case meanSquared

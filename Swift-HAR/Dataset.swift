@@ -12,7 +12,7 @@ import Foundation
 public extension NeuralNet {
     
     /// A complete dataset for training a neural network, including training sets and validation sets.
-    public struct Dataset {
+    struct Dataset {
         
         public enum Error: Swift.Error {
             case data(String)

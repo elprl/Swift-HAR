@@ -96,7 +96,7 @@ public extension NeuralNet {
     ///
     /// - Parameter weights: A serialized array of `Float`, to be used as hidden *and* output weights for the network.
     /// - IMPORTANT: The number of weights must equal `hidden * (inputs + 1) + outputs * (hidden + 1)`, or the weights will be rejected.
-    public func setWeights(_ weights: [Float]) throws {
+    func setWeights(_ weights: [Float]) throws {
         // Ensure valid number of weights
         guard weights.count == structure.numHiddenWeights + structure.numOutputWeights else {
             throw Error.weights("Invalid number of weights provided: \(weights.count). Expected: \(structure.numHiddenWeights + structure.numOutputWeights).")
@@ -107,7 +107,7 @@ public extension NeuralNet {
     }
     
     /// Returns a serialized array of the network's current weights.
-    public func allWeights() -> [Float] {
+    func allWeights() -> [Float] {
         return cache.hiddenWeights + cache.outputWeights
     }
     
@@ -174,7 +174,7 @@ public extension NeuralNet {
     /// - Throws: An error if an incorrect number of inputs is provided.
     /// - IMPORTANT: The number of inputs provided must exactly match the network's number of inputs (defined in its `Structure`).
     @discardableResult
-    public func infer(_ inputs: [Float]) throws -> [Float] {
+    func infer(_ inputs: [Float]) throws -> [Float] {
         // Ensure that the correct number of inputs is given
         guard inputs.count == structure.inputs else {
             throw Error.inference("Invalid number of inputs provided: \(inputs.count). Expected: \(structure.inputs).")
@@ -240,7 +240,7 @@ public extension NeuralNet {
     /// - Parameter labels: The 'target' desired output for the most recent inference cycle, as an array `[Float]`.
     /// - Throws: An error if an incorrect number of outputs is provided.
     /// - IMPORTANT: The number of labels provided must exactly match the network's number of outputs (defined in its `Structure`).
-    public func backpropagate(_ labels: [Float]) throws {
+    func backpropagate(_ labels: [Float]) throws {
         // Ensure that the correct number of outputs was given
         guard labels.count == structure.outputs else {
             throw Error.train("Invalid number of labels provided: \(labels.count). Expected: \(structure.outputs).")
@@ -373,7 +373,7 @@ public extension NeuralNet {
     /// - Throws: An error if invalid data is provided. Checks are performed in advance to avoid problems during the training cycle.
     /// - WARNING: `errorThreshold` should be considered carefully. A value too high will produce a poorly-performing network, while a value too low (i.e. too accurate) may be unachievable, resulting in an infinite training process.
     @discardableResult
-    public func train(_ data: Dataset, errorThreshold: Float, maxEpochs: Int) throws -> [Float] {
+    func train(_ data: Dataset, errorThreshold: Float, maxEpochs: Int) throws -> [Float] {
         // Ensure valid error threshold
         guard errorThreshold > 0 else {
             throw Error.train("Training error threshold must be greater than zero.")

@@ -12,7 +12,7 @@ import Foundation
 public extension NeuralNet {
     
     /// Basic configuration settings for `NeuralNet`.
-    public struct Configuration {
+    struct Configuration {
         
         /// Possible `Configuration` errors.
         public enum Error: Swift.Error {
