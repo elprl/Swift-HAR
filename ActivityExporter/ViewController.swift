@@ -11,19 +11,33 @@ import CoreMotion
 import AVFoundation
 
 let manager = CMMotionManager()
+let CSV_HEADER = "time,accel-x,accel-y,accel-z,gyro-x,gyro-y,gyro-z"
+
 
 class ViewController: UIViewController {
     
     // MARK: Var outlets
     
-    @IBOutlet weak var accelXText: UITextField!
-    @IBOutlet weak var accelYText: UITextField!
-    @IBOutlet weak var accelZText: UITextField!
-    @IBOutlet weak var gyroXText: UITextField!
-    @IBOutlet weak var gyroYText: UITextField!
-    @IBOutlet weak var gyroZText: UITextField!
-    @IBOutlet weak var currentAppStatus: UITextView!
+    @IBOutlet weak var accelXText: UILabel!
+    @IBOutlet weak var accelYText: UILabel!
+    @IBOutlet weak var accelZText: UILabel!
+    @IBOutlet weak var gyroXText: UILabel!
+    @IBOutlet weak var gyroYText: UILabel!
+    @IBOutlet weak var gyroZText: UILabel!
+    @IBOutlet weak var currentAppStatus: UILabel!
     @IBOutlet weak var actionText: UITextField!
+    
+    @IBAction func unwindToHome(segue: UIStoryboardSegue) { }
+    
+    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
+        super.prepare(for: segue, sender: sender)
+        
+        print("performed segue")
+        if let vc: ChartViewController = (segue.destination as? UINavigationController)?.topViewController as? ChartViewController, let filePath = sender as? URL {
+            vc.filePath = filePath           
+        }
+    }
+
     
     // MARK: Buttons
     @IBAction func recDataButtonPressed(_ sender: Any) {
@@ -37,7 +51,10 @@ class ViewController: UIViewController {
         
         delay(15){
             AudioServicesPlaySystemSound(self.systemSoundID)
-            self.exportToText(currMatrix: self.dataMatrix, action: self.actionType)
+            if let file = self.exportToText(currMatrix: self.dataMatrix, action: self.actionType) {
+                FIRFileUploader.uploadFile(withFile: file)
+                self.performSegue(withIdentifier: "openChart", sender: file)
+            }
             self.actionsLog = self.checkOutput(currentActions: self.actionsLog, newAction: self.actionType)
             let ind = self.actionsLog.firstIndex(of: self.actionType)
             print(ind!)
@@ -47,13 +64,15 @@ class ViewController: UIViewController {
             } else {
                 self.miscActMatrix[ind!] = self.dataMatrix
             }
+            
         }
         
     }
     
     @IBAction func saveBPressed(_ sender: Any) {
-        self.exportToText(currMatrix: self.dataMatrix, action: self.actionType)
-        
+        if let file = self.exportToText(currMatrix: self.dataMatrix, action: self.actionType) {
+            FIRFileUploader.uploadFile(withFile: file)
+        }
     }
 
     /* Deleted live accel and gyro update buttons
@@ -158,7 +177,7 @@ class ViewController: UIViewController {
     }
     
     @IBAction func resetMem(_ sender: Any) {
-        self.dataMatrix = Array(repeating: Array(repeating:0.0, count: 4), count: rowNum)
+        self.dataMatrix = Array(repeating: Array(repeating:0.0, count: 7), count: rowNum)
         self.miscActMatrix.removeAll()
         self.miscActTrain.removeAll()
         self.miscActTest.removeAll()
@@ -177,8 +196,11 @@ class ViewController: UIViewController {
     var i = 0
     var dataInd: Float = 0.0
     var ax: Float = 0.0
-    var ay:Float = 0.0
-    var az:Float = 0.0
+    var ay: Float = 0.0
+    var az: Float = 0.0
+    var gx: Float = 0.0
+    var gy: Float = 0.0
+    var gz: Float = 0.0
     var actionType = "unDefData"
     var nnInputNum: Int = 0
     var hiddenLayerNum: Int = 0
@@ -225,9 +247,6 @@ class ViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view, typically from a nib.
-        accelXText.delegate = self
-        accelYText.delegate = self
-        accelZText.delegate = self
         actionText.delegate = self
         definesPresentationContext = true
         
@@ -253,7 +272,7 @@ class ViewController: UIViewController {
         }
         
         //Preallocate matrices for storing data
-        dataMatrix = Array(repeating: Array(repeating:0.0, count: 4), count: rowNum)
+        dataMatrix = Array(repeating: Array(repeating:0.0, count: 7), count: rowNum)
         standTrainMatrix = Array(repeating: Array(repeating: 0.0, count: nnInputNum), count: bootTrainDataNum)
         walkTrainMatrix = Array(repeating: Array(repeating: 0.0, count: nnInputNum), count: bootTrainDataNum)
         standTestMatrix = Array(repeating: Array(repeating: 0.0, count: nnInputNum), count: bootTestDataNum)
@@ -295,6 +314,9 @@ class ViewController: UIViewController {
         manager.startGyroUpdates(to: .main) {
             [weak self] (data: CMGyroData?, error: Error?) in
             if (data?.rotationRate) != nil {
+                self?.gx = Float((data?.rotationRate.x)!)
+                self?.gy = Float((data?.rotationRate.y)!)
+                self?.gz = Float((data?.rotationRate.z)!)
                 self?.outputGyroData(rotation: (data?.rotationRate)!)
             }
         }
@@ -334,6 +356,9 @@ class ViewController: UIViewController {
             dataMatrix[i][1] = ax
             dataMatrix[i][2] = ay
             dataMatrix[i][3] = az
+            dataMatrix[i][4] = gx
+            dataMatrix[i][5] = gy
+            dataMatrix[i][6] = gz
             i += 1
             dataInd += Float(self.updateInterval)
         }
@@ -545,7 +570,7 @@ class ViewController: UIViewController {
     //      This is the action "guessing" portion.
     
     // MARK: Data exporting
-    func exportToText(currMatrix: [[Float]], action: String){
+    @discardableResult func exportToText(currMatrix: [[Float]], action: String) -> URL? {
         print("Exporting")
         currentAppStatus.text = "Exporting..."
         /*
@@ -567,8 +592,9 @@ class ViewController: UIViewController {
             //writing
             do {
                 try exportText.write(to: path, atomically: true, encoding: String.Encoding.utf8)
-                print("Export Successful!")
+                print("Export Successful to path:\n\(path)")
                 currentAppStatus.text = "Export Complete!"
+                return path
             }
             catch {print(error)} //and then QQ in the fetal position
             /*
@@ -579,10 +605,12 @@ class ViewController: UIViewController {
             catch {/* error handling here */}
             */
         }
+        
+        return nil
     }
     
     func flattenDataMatrix(_ arr2D: [[Float]]) -> String {
-        var returnString = "time,accelx,accely,accelz"
+        var returnString = CSV_HEADER
         for row in arr2D {
             let stringArray: [String] = row.compactMap{String($0)}
             let string = stringArray.joined(separator: ",")
@@ -598,15 +626,10 @@ class ViewController: UIViewController {
     
     func fileTagger() -> String {
         let date = Date()
-        let calendar = Calendar.current
-        let year = calendar.component(.year, from: date)
-        let month = calendar.component(.month, from: date)
-        let day = calendar.component(.day, from:date)
-        let hour = calendar.component(.hour, from: date)
-        let minutes = calendar.component(.minute, from: date)
-        let seconds = calendar.component(.second, from: date)
-        
-        return "\(year)\(month)\(day)-\(hour)\(minutes)\(seconds)"
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"
+
+        return formatter.string(from: date)
     }
     
     // TODO: Write function for clearing doc directory
